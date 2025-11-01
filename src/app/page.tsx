@@ -38,6 +38,9 @@ const RISK_CONFIG = {
       "0-3": 2,
       "4-6": 6,
       "7-9": 10,
+      "10-12": 13,
+      "13-16": 15,
+      "17+": 12,
     },
     "How many kids": {
       "1": 3,
@@ -63,6 +66,7 @@ const RISK_CONFIG = {
       "30+": 4,
       "14-29": 8,
       "7-13": 12,
+      "<= 6": 15,
     },
     "How obvious are the clues": {
       "Plain boxes, quiet": 2,
@@ -81,7 +85,7 @@ type Answers = Record<string, string | number | boolean>;
 
 type Item = {
   id: string;
-  type: "radio" | "slider" | "number" | "boolean" | "select";
+  type: "select" | "radio";
   prompt: string;
   options?: string[];
   min?: number;
@@ -94,7 +98,7 @@ type Item = {
 const FORM_ITEMS: Item[] = [
   { id: "spot", type: "radio", prompt: "Hiding spot selection", options: Object.keys(RISK_CONFIG.spotBaseRisk), required: true },
   { id: "age_group", type: "select", prompt: "Oldest Child's Age", options: Object.keys(RISK_CONFIG.riskFactors["Oldest Child's Age"]), required: true },
-  { id: "kids_count", type: "select", prompt: "How many kids?", options: Object.keys(RISK_CONFIG.riskFactors["How many kids"]), required: true },
+  { id: "kids_count", type: "select", prompt: "How many kids", options: Object.keys(RISK_CONFIG.riskFactors["How many kids"]), required: true },
   { id: "snooping", type: "select", prompt: "Snooping tendencies", options: Object.keys(RISK_CONFIG.riskFactors["Snooping tendencies"]), required: true },
   { id: "access_area", type: "select", prompt: "Access to the hiding area (garage/shed/attic)", options: Object.keys(RISK_CONFIG.riskFactors["Access to the garage/shed/attic"]), required: true },
   { id: "reach_climb", type: "select", prompt: "Reach and climbing", options: Object.keys(RISK_CONFIG.riskFactors["Reach and climbing"]), required: true },
@@ -104,18 +108,15 @@ const FORM_ITEMS: Item[] = [
 ];
 
 const clamp = (n: number, min = 0, max = 100) => Math.min(max, Math.max(min, n));
-const isAnswered = (item: Item, value: any): boolean =>
-  item.required === false
-    ? true
-    : item.type === "radio" || item.type === "select"
-      ? value !== undefined && value !== null && String(value).length > 0
-      : item.type === "slider"
-        ? typeof value === "number"
-        : item.type === "number"
-          ? value !== undefined && value !== null && value !== ""
-          : item.type === "boolean"
-            ? typeof value === "boolean"
-            : value !== undefined && value !== null;
+
+function isAnswered(item: Item, value: any): boolean {
+  const req = item.required !== false;
+  if (!req) return true;
+  if (item.type === "select" || item.type === "radio") {
+    return value !== undefined && value !== null && String(value).length > 0;
+  }
+  return false;
+}
 
 function computeRiskIndex(a: Answers) {
   const spot = String(a.spot ?? "");
@@ -196,35 +197,6 @@ function Question({ item, value, onChange }: { item: Item; value: any; onChange:
               <span className="text-sm">{opt}</span>
             </label>
           ))}
-        </div>
-      )}
-
-      {item.type === "slider" && (
-        <div className="mt-3">
-          {(() => {
-            const numeric = typeof value === "number" ? value : Number(item.min ?? 0);
-            return (
-              <>
-                <input type="range" min={item.min ?? 0} max={item.max ?? 100} step={item.step ?? 1} value={numeric} onChange={(e) => onChange(Number(e.target.value))} onInput={(e) => onChange(Number((e.target as HTMLInputElement).value))} className="w-full accent-[#1976d3]" />
-                <div className="mt-1 text-xs text-gray-600">{numeric}%</div>
-              </>
-            );
-          })()}
-        </div>
-      )}
-
-      {item.type === "number" && (
-        <div className="mt-3">
-          <input type="number" min={item.min ?? 0} max={item.max ?? 100} step={item.step ?? 1} value={value ?? ""} onChange={(e) => onChange(e.target.value === "" ? "" : parseFloat(e.target.value))} className="w-40 rounded-md border px-3 py-2 text-sm focus:border-[#1976d3] focus:ring-[#1976d3]" />
-        </div>
-      )}
-
-      {item.type === "boolean" && (
-        <div className="mt-3">
-          <label className="inline-flex items-center gap-2">
-            <input type="checkbox" checked={!!value} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4 text-[#1976d3] focus:ring-[#1976d3]" />
-            <span className="text-sm">Yes</span>
-          </label>
         </div>
       )}
       {item.type === "select" && (
